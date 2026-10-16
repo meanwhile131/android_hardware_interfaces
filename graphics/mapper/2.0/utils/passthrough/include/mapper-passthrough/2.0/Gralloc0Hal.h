@@ -75,12 +75,25 @@ class Gralloc0HalImpl : public Hal {
 
     Error importBuffer(const native_handle_t* rawHandle,
                        native_handle_t** outBufferHandle) override {
+        if (!rawHandle || !mModule) {
+            ALOGE("importBuffer: invalid gralloc module or null raw handle");
+            return Error::BAD_BUFFER;
+        }
+
+        if (rawHandle->numFds < 0 || rawHandle->numInts < 0) {
+            ALOGE("importBuffer: invalid native handle descriptor (numFds=%d, numInts=%d)",
+                  rawHandle->numFds, rawHandle->numInts);
+            return Error::BAD_BUFFER;
+        }
+
         native_handle_t* bufferHandle = native_handle_clone(rawHandle);
         if (!bufferHandle) {
+            ALOGE("importBuffer: failed to clone native handle");
             return Error::NO_RESOURCES;
         }
 
         if (mModule->registerBuffer(mModule, bufferHandle)) {
+            ALOGE("importBuffer: registerBuffer failed for handle %p", bufferHandle);
             native_handle_close(bufferHandle);
             native_handle_delete(bufferHandle);
             return Error::BAD_BUFFER;
